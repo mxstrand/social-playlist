@@ -21,3 +21,11 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    # Make real-time best-effort: a publish failure (e.g. hub not reachable during a
+    # CLI seed, or a transient hub outage) must never break the write that triggered it.
+    App\Mercure\ResilientHub:
+        decorates: mercure.hub.default
+        arguments:
+            $inner: '@.inner'
+            $logger: '@logger'
