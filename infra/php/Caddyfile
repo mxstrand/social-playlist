@@ -1,0 +1,13 @@
+# Minimal FrankenPHP / Caddy config for local dev.
+# `php_server` handles the Symfony front-controller rewrite (→ public/index.php).
+# Mercure (real-time) gets added here in M2.
+{
+	frankenphp
+	order php_server before file_server
+}
+
+:8000 {
+	root * /app/public
+	encode zstd br gzip
+	php_server
+}

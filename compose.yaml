@@ -1,0 +1,38 @@
+# Local dev stack for Social Playlist.
+#   app      → Symfony 7 + API Platform on FrankenPHP (the product / agent front door)
+#   database → PostgreSQL
+# Runs as uid/gid 1000 so files written into ./api stay host-owned and editable.
+services:
+  app:
+    build:
+      context: ./infra/php
+    user: "1000:1000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: "postgresql://app:app@database:5432/social_playlist?serverVersion=16&charset=utf8"
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: social_playlist
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d social_playlist"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db_data:
