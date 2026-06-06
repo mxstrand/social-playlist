@@ -9,6 +9,10 @@ COPY infra/php/Caddyfile.prod /etc/frankenphp/Caddyfile
 
 WORKDIR /app
 ENV APP_ENV=prod
+# Railway builds as root; Composer disables plugins as root unless this is set.
+# Without it, the symfony/runtime + symfony/flex plugins don't load → no
+# vendor/autoload_runtime.php and "symfony-cmd: not found". This is THE fix.
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
 # Full app code first (vendor/ and var/ are excluded via .dockerignore).
 COPY api/ ./
