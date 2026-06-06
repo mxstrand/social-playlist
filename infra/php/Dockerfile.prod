@@ -2,34 +2,37 @@
 # Build context = repo ROOT (so we can COPY api/). Railway builds this via railway.json.
 FROM dunglas/frankenphp:1-php8.4
 
-# Install + ASSERT the extensions are actually loaded (fail the build, not at runtime,
-# if pdo_pgsql/intl are missing). The assertion also busts any stale build-cache layer.
+# PHP extensions for Symfony 7 + API Platform + Postgres. Assert they loaded so a bad
+# install fails the BUILD instead of crash-looping at runtime.
 RUN install-php-extensions intl pdo_pgsql opcache zip @composer \
     && php -m | grep -qi '^pdo_pgsql$' \
-    && php -m | grep -qi '^intl$' \
-    && echo "ext check OK: pdo_pgsql + intl loaded"
+    && php -m | grep -qi '^intl$'
 
-# Prod Caddyfile: listens on $PORT, serves /app/public, runs the Mercure hub.
+# FrankenPHP reads its Caddyfile here; ours listens on $PORT and runs the Mercure hub.
 COPY infra/php/Caddyfile.prod /etc/frankenphp/Caddyfile
 
 WORKDIR /app
 ENV APP_ENV=prod
-# Railway builds as root; Composer disables plugins as root unless this is set.
-# Without it, the symfony/runtime + symfony/flex plugins don't load → no
-# vendor/autoload_runtime.php and "symfony-cmd: not found". This is THE fix.
+# Railway builds as ROOT, and Composer disables plugins as root unless this is set. Without it the
+# symfony/runtime + symfony/flex plugins don't load → no vendor/autoload_runtime.php and
+# "symfony-cmd: not found". This single line is what makes the build work on Railway.
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# Full app code first (vendor/ and var/ are excluded via .dockerignore).
+# 1) Dependencies first — this layer is cached on composer.*, so it only re-runs when the
+#    lockfile changes (not on every app-code edit).
+COPY api/composer.json api/composer.lock api/symfony.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+
+# 2) App code, then the optimized autoloader (symfony/runtime writes vendor/autoload_runtime.php
+#    during post-autoload-dump) + warm the prod cache + install bundle assets. Symfony resolves
+#    env vars lazily, so no DATABASE_URL / secrets are needed at build time.
 COPY api/ ./
+RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
+    && test -f vendor/autoload_runtime.php \
+    && php bin/console cache:clear --no-interaction \
+    && php bin/console assets:install public --no-interaction
 
-# Install prod deps with scripts ENABLED so the symfony/runtime Composer plugin
-# generates vendor/autoload_runtime.php (required by bin/console & public/index.php),
-# and Flex warms the prod cache. cache:clear / assets:install resolve env lazily, so no
-# DATABASE_URL/APP_SECRET are needed at build time. (A two-step --no-scripts install does
-# NOT reliably create autoload_runtime.php on clean builders — that broke the first deploy.)
-RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --classmap-authoritative
-
-# Migrate + seed + warm + serve.
+# Migrate + seed + serve.
 COPY infra/php/docker-entrypoint.prod.sh /usr/local/bin/sp-entrypoint
 RUN chmod +x /usr/local/bin/sp-entrypoint
 
