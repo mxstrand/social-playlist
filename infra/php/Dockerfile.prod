@@ -8,19 +8,19 @@ RUN install-php-extensions intl pdo_pgsql opcache zip @composer
 COPY infra/php/Caddyfile.prod /etc/frankenphp/Caddyfile
 
 WORKDIR /app
-
 ENV APP_ENV=prod
 
-# Install PHP deps first for layer caching (no dev deps, no scripts at build time —
-# scripts need runtime env, so we defer cache:clear/assets to the entrypoint).
-COPY api/composer.json api/composer.lock api/symfony.lock ./
-RUN composer install --no-dev --no-scripts --no-interaction --prefer-dist --optimize-autoloader
-
-# App code (vendor/var excluded via .dockerignore), then authoritative autoload.
+# Full app code first (vendor/ and var/ are excluded via .dockerignore).
 COPY api/ ./
-RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
 
-# Migrate + warm + serve.
+# Install prod deps with scripts ENABLED so the symfony/runtime Composer plugin
+# generates vendor/autoload_runtime.php (required by bin/console & public/index.php),
+# and Flex warms the prod cache. cache:clear / assets:install resolve env lazily, so no
+# DATABASE_URL/APP_SECRET are needed at build time. (A two-step --no-scripts install does
+# NOT reliably create autoload_runtime.php on clean builders — that broke the first deploy.)
+RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader --classmap-authoritative
+
+# Migrate + seed + warm + serve.
 COPY infra/php/docker-entrypoint.prod.sh /usr/local/bin/sp-entrypoint
 RUN chmod +x /usr/local/bin/sp-entrypoint
 
