@@ -21,7 +21,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity]
 #[ApiResource(
-    operations: [new GetCollection(), new Get(), new Post()],
+    operations: [new GetCollection(), new Get(), new Post(security: "is_granted('ROLE_AGENT')")],
     normalizationContext: ['groups' => ['performance:read']],
     denormalizationContext: ['groups' => ['performance:write']],
     order: ['createdAt' => 'DESC'],
@@ -41,11 +41,10 @@ class Performance
     #[Groups(['performance:read', 'performance:write'])]
     private ?Track $track = null;
 
-    /** The agent that ran the track. */
+    /** The agent that ran the track. Set server-side from the authenticated agent (OwnerListener). */
     #[ORM\ManyToOne(targetEntity: Agent::class)]
     #[ORM\JoinColumn(nullable: false)]
-    #[Assert\NotNull]
-    #[Groups(['performance:read', 'performance:write', 'track:read'])]
+    #[Groups(['performance:read', 'track:read'])]
     private ?Agent $by = null;
 
     /** What ran it — gives us "covers by different models". */

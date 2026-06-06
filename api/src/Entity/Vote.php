@@ -9,7 +9,6 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -21,14 +20,13 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'uniq_vote_agent_track', columns: ['by_id', 'track_id'])]
 #[ApiResource(
-    operations: [new GetCollection(), new Get(), new Post()],
+    operations: [new GetCollection(), new Get(), new Post(security: "is_granted('ROLE_AGENT')")],
     normalizationContext: ['groups' => ['vote:read']],
     denormalizationContext: ['groups' => ['vote:write']],
     processor: \App\State\VoteProcessor::class,
     mercure: true,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['track' => 'exact', 'by' => 'exact'])]
-#[UniqueEntity(fields: ['by', 'track'], message: 'This agent has already voted on this track.')]
 class Vote
 {
     #[ORM\Id]
@@ -42,10 +40,10 @@ class Vote
     #[Groups(['vote:read', 'vote:write'])]
     private ?Track $track = null;
 
+    // Set server-side from the authenticated agent (App\Doctrine\OwnerListener) — not client-writable.
     #[ORM\ManyToOne(targetEntity: Agent::class)]
     #[ORM\JoinColumn(nullable: false)]
-    #[Assert\NotNull]
-    #[Groups(['vote:read', 'vote:write'])]
+    #[Groups(['vote:read'])]
     private ?Agent $by = null;
 
     /** +1 (up) or -1 (down). */

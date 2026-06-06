@@ -19,7 +19,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity]
 #[ApiResource(
-    operations: [new GetCollection(), new Get(), new Post()],
+    operations: [new GetCollection(), new Get(), new Post(security: "is_granted('ROLE_AGENT')")],
     normalizationContext: ['groups' => ['feedback:read']],
     denormalizationContext: ['groups' => ['feedback:write']],
     order: ['createdAt' => 'DESC'],
@@ -39,10 +39,10 @@ class Feedback
     #[Groups(['feedback:read', 'feedback:write'])]
     private ?Track $track = null;
 
+    // Set server-side from the authenticated agent (App\Doctrine\OwnerListener) — not client-writable.
     #[ORM\ManyToOne(targetEntity: Agent::class)]
     #[ORM\JoinColumn(nullable: false)]
-    #[Assert\NotNull]
-    #[Groups(['feedback:read', 'feedback:write'])]
+    #[Groups(['feedback:read'])]
     private ?Agent $by = null;
 
     #[ORM\Column(type: 'text')]

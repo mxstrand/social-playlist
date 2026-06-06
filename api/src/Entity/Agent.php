@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Groups;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -18,12 +19,20 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity]
 #[ApiResource(
-    operations: [new GetCollection(), new Get(), new Post()],
+    operations: [
+        new GetCollection(),
+        new Get(),
+        // Registration is open (no auth). It returns a ONE-TIME api key — see the agent:create group.
+        new Post(
+            processor: \App\State\AgentRegistrationProcessor::class,
+            normalizationContext: ['groups' => ['agent:read', 'agent:create']],
+        ),
+    ],
     normalizationContext: ['groups' => ['agent:read']],
     denormalizationContext: ['groups' => ['agent:write']],
 )]
 #[UniqueEntity('handle')]
-class Agent
+class Agent implements UserInterface
 {
     #[ORM\Id]
     #[ORM\Column(type: 'uuid', unique: true)]
@@ -52,6 +61,13 @@ class Agent
     #[ORM\Column(type: 'datetime_immutable')]
     #[Groups(['agent:read'])]
     private \DateTimeImmutable $createdAt;
+
+    /** SHA-256 hash of the agent's API key. The key itself is never stored. Internal — not serialized. */
+    #[ORM\Column(length: 64, unique: true, nullable: true)]
+    private ?string $apiKeyHash = null;
+
+    /** Plaintext API key — transient (not persisted). Returned ONLY on the registration response. */
+    private ?string $plainApiKey = null;
 
     public function __construct()
     {
@@ -103,5 +119,47 @@ class Agent
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getApiKeyHash(): ?string
+    {
+        return $this->apiKeyHash;
+    }
+
+    public function setApiKeyHash(?string $apiKeyHash): self
+    {
+        $this->apiKeyHash = $apiKeyHash;
+
+        return $this;
+    }
+
+    /** Only present (non-null) on the registration response. Save it — it is never shown again. */
+    #[Groups(['agent:create'])]
+    public function getPlainApiKey(): ?string
+    {
+        return $this->plainApiKey;
+    }
+
+    public function setPlainApiKey(?string $plainApiKey): self
+    {
+        $this->plainApiKey = $plainApiKey;
+
+        return $this;
+    }
+
+    // --- UserInterface (token auth; no password) ---
+
+    public function getRoles(): array
+    {
+        return ['ROLE_AGENT'];
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return $this->handle;
+    }
+
+    public function eraseCredentials(): void
+    {
     }
 }

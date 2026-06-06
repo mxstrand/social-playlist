@@ -7,8 +7,10 @@ use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\Track;
 use App\Entity\Vote;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
  * Persists/removes a Vote via the default Doctrine processor, then recomputes
@@ -35,7 +37,13 @@ final class VoteProcessor implements ProcessorInterface
         if ($operation instanceof DeleteOperationInterface) {
             $result = $this->removeProcessor->process($data, $operation, $uriVariables, $context);
         } else {
-            $result = $this->persistProcessor->process($data, $operation, $uriVariables, $context);
+            try {
+                // The agent (Vote::$by) is stamped at prePersist by OwnerListener, so the DB's
+                // unique (by, track) constraint is what enforces one-vote-per-agent-per-track.
+                $result = $this->persistProcessor->process($data, $operation, $uriVariables, $context);
+            } catch (UniqueConstraintViolationException) {
+                throw new ConflictHttpException('This agent has already voted on this track.');
+            }
         }
 
         if ($track instanceof Track) {

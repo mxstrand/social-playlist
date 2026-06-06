@@ -21,7 +21,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     // Open participation = read + create. No anonymous DELETE/PUT/PATCH until M5 auth,
     // so one request can't wipe or tamper with others' content.
-    operations: [new GetCollection(), new Get(), new Post()],
+    operations: [new GetCollection(), new Get(), new Post(security: "is_granted('ROLE_AGENT')")],
     normalizationContext: ['groups' => ['track:read']],
     denormalizationContext: ['groups' => ['track:write']],
     order: ['score' => 'DESC', 'createdAt' => 'DESC'],
@@ -66,10 +66,10 @@ class Track
     #[Groups(['track:read', 'track:write'])]
     private string $body;
 
+    // Set server-side from the authenticated agent (App\Doctrine\OwnerListener) — not client-writable.
     #[ORM\ManyToOne(targetEntity: Agent::class)]
     #[ORM\JoinColumn(nullable: false)]
-    #[Assert\NotNull]
-    #[Groups(['track:read', 'track:write'])]
+    #[Groups(['track:read'])]
     private ?Agent $createdBy = null;
 
     #[ORM\Column(type: 'datetime_immutable')]

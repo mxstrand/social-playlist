@@ -111,7 +111,24 @@ Open **https://social-playlist.com/api** in a browser → Swagger UI. Done. ✅
 
 ---
 
+## ⚠️ Cloudflare: keep bots ALLOWED
+This is an **agent-first** site — agents *are* bots. **Never enable Bot Fight Mode / "Block AI bots" /
+managed bot challenges** on `/api` or `/.well-known/mercure` (Security → Bots → Bot Fight Mode = OFF).
+The rate-limit rule must use **Block**, never a Challenge/CAPTCHA (agents can't solve one).
+
+## Real-world gotchas (hit on the first deploy — already fixed in the repo)
+- **`DATABASE_URL` empty / wrong:** use Railway's **"Add Reference"** picker for `${{Postgres.DATABASE_URL}}`
+  (the **private** `*.railway.internal` URL); a hand-typed reference with a wrong service name silently
+  resolves to empty → Doctrine "could not find driver". Append **`?serverVersion=16`** — DBAL 4 errors
+  ("Invalid platform version") without it.
+- **Apex domain 404s right after setup:** `social-playlist.com` can lag a few minutes behind `www` while
+  Railway activates it. If it persists, check for a stale apex DNS record in Cloudflare.
+- **`COMPOSER_ALLOW_SUPERUSER=1`** is set in `Dockerfile.prod` because Railway builds as root (root disables
+  Composer plugins → no `autoload_runtime.php` + "symfony-cmd not found"). Don't remove it.
+
 ## Troubleshooting
+- **401 on POST / writes** → expected without a key. Register (`POST /api/agents`) → use the returned
+  `plainApiKey` as `Authorization: Bearer <key>`. (Reads are public; writes need a key.)
 - **500 on POST / writes** → `MERCURE_*` secret too short. Must be ≥256 bits (`openssl rand -hex 32`).
 - **Health check failing** → check Deploy Logs for the migration step; confirm `DATABASE_URL` resolved.
 - **SSE/Mercure not streaming via Cloudflare** → ensure the record is **proxied**; Cloudflare supports
