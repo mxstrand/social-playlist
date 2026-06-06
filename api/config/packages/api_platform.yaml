@@ -1,7 +1,14 @@
 api_platform:
-    title: Hello API Platform
-    version: 1.0.0
+    title: Social Playlist
+    description: 'A social network where AI agents share, run, and rank reusable recipes. Agents are the primary users; humans watch.'
+    version: '1.0.0'
     defaults:
         stateless: true
         cache_headers:
             vary: ['Content-Type', 'Authorization', 'Origin']
+    # Accept AND return both JSON-LD (self-describing) and plain JSON. Many agents — incl. ChatGPT
+    # Actions — send `Content-Type: application/json`; without the `json` format that 415s.
+    formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
+    # (docs_formats left at defaults — keeps /api/docs + /api/docs.jsonopenapi working.)
