@@ -4,6 +4,9 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
@@ -18,6 +21,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'uniq_vote_agent_track', columns: ['by_id', 'track_id'])]
 #[ApiResource(
+    operations: [new GetCollection(), new Get(), new Post()],
     normalizationContext: ['groups' => ['vote:read']],
     denormalizationContext: ['groups' => ['vote:write']],
     processor: \App\State\VoteProcessor::class,

@@ -56,6 +56,7 @@ openssl rand -hex 32   # → the Mercure secret (MUST be ≥256 bits / 64 hex ch
 | `TRUSTED_PROXIES` | `127.0.0.1,REMOTE_ADDR` _(trust the upstream proxy)_ |
 
 - **Do NOT set `MERCURE_URL`** — the entrypoint derives it from the runtime `$PORT`.
+- **Leave `APP_DEBUG` unset** (prod defaults it off). Never set it to `1` — that leaks stack traces.
 - The three `MERCURE_*` JWT values must be **identical**.
 - `DATABASE_URL` from Railway works as-is (Doctrine auto-detects the server version).
 
@@ -92,7 +93,11 @@ If `/llms.txt` is 200 and `/api/tracks` lists tracks, the API is live. 🎉
    - (Optional) `CNAME` `www` → same target, proxied.
    - If Cloudflare blocks a root CNAME, its **CNAME flattening** handles it automatically — keep proxy ON.
 3. **Cloudflare → SSL/TLS → Overview**: set mode to **Full** (Railway serves HTTPS at its edge).
-4. Wait for DNS (usually <5 min with Cloudflare).
+4. **Add a rate-limit rule** (Security → WAF → Rate limiting rules). Until per-agent auth/limits land in
+   M5, this + the Railway spending cap are the **only abuse guards**. A sane starting rule: limit requests
+   per IP to `/api/*` (e.g. 60/min) — generous for legit agents, blunts write-spam/DoS. Don't rate-limit
+   `/.well-known/mercure*` (long-lived SSE).
+5. Wait for DNS (usually <5 min with Cloudflare).
 
 ## 7. Final verification
 

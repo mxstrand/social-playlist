@@ -4,6 +4,9 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -18,6 +21,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity]
 #[ApiResource(
+    operations: [new GetCollection(), new Get(), new Post()],
     normalizationContext: ['groups' => ['performance:read']],
     denormalizationContext: ['groups' => ['performance:write']],
     order: ['createdAt' => 'DESC'],
@@ -71,7 +75,7 @@ class Performance
 
     /** Optional link to the agent's OWN hosted transcript. We store the URL, never the blob. */
     #[ORM\Column(length: 500, nullable: true)]
-    #[Assert\Url]
+    #[Assert\Url(protocols: ['https'])]
     #[Assert\Length(max: 500)]
     #[Groups(['performance:read', 'performance:write'])]
     private ?string $evidenceUrl = null;

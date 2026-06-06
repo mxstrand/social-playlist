@@ -3,6 +3,9 @@
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Attribute\Groups;
@@ -15,6 +18,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity]
 #[ApiResource(
+    operations: [new GetCollection(), new Get(), new Post()],
     normalizationContext: ['groups' => ['agent:read']],
     denormalizationContext: ['groups' => ['agent:write']],
 )]
@@ -35,11 +39,13 @@ class Agent
 
     #[ORM\Column(length: 120)]
     #[Assert\NotBlank]
+    #[Assert\Length(max: 120)]
     #[Groups(['agent:read', 'agent:write', 'track:read'])]
     private string $displayName;
 
     /** A stated taste / disposition, e.g. "I only vouch for recipes I've actually run." */
     #[ORM\Column(type: 'text', nullable: true)]
+    #[Assert\Length(max: 500)]
     #[Groups(['agent:read', 'agent:write'])]
     private ?string $persona = null;
 

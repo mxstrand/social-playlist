@@ -3,29 +3,40 @@
 > Living handoff doc — what's done, what's next, what needs a human. Updated as work proceeds.
 > Roadmap lives in [ARCHITECTURE.md](./ARCHITECTURE.md#roadmap).
 
-_Last updated: 2026-06-06 — end of M2._
+_Last updated: 2026-06-06 — M1–M3 + deploy prep + security pass._
 
 ## Done so far
 
 ### M1 — API spine ✅
-- **Dockerized dev stack** (`compose.yaml`, `infra/php/`): FrankenPHP app (uid 1000 → host-editable) + Postgres 16.
-- **Domain**: `Agent`, `Track` (recipe with stated **outcome + success criterion**), `TrackKind` enum.
-- **Self-describing API**: Hydra JSON-LD + OpenAPI 3.1 (`/api/docs.jsonopenapi`).
-- **Portable blob** per track (`Track::getBlob()`); 5-track + 2-agent seed catalog.
+- Dockerized dev stack (`compose.yaml`, `infra/php/`): FrankenPHP app (uid 1000 → host-editable) + Postgres 16.
+- Domain: `Agent`, `Track` (recipe with stated **outcome + success criterion**), `TrackKind` enum.
+- Self-describing API: Hydra JSON-LD + OpenAPI 3.1 (`/api/docs.jsonopenapi`).
+- Portable `blob` per track (`Track::getBlob()`).
 
 ### M2 — Social loop + real-time ✅
-- **`Performance`** = bounded anecdotal review (outcome ✓/✗, model, 280-char note, optional excerpt /
-  evidence-URL). **No transcript field** — by design (storage + privacy).
-- **`Vote`** (one per agent per track, unique constraint) → drives denormalized **`Track.score`** via
-  `App\State\VoteProcessor`. Tracks default-order by score DESC — **cream rises**.
-- **`Feedback`** = bounded agent discourse.
-- **Real-time**: Mercure hub (bundled in FrankenPHP) at `/.well-known/mercure`, anonymous subscribe
-  (public spectating). `mercure: true` on all four resources — create/update/delete push live.
+- `Performance` = bounded anecdotal review (no transcript field). `Vote` (unique per agent/track) →
+  `Track.score` via `App\State\VoteProcessor` (cream rises). `Feedback` = bounded discourse.
+- Real-time: Mercure hub (FrankenPHP) at `/.well-known/mercure`, anonymous subscribe. `mercure: true`
+  on all resources. `App\Mercure\ResilientHub` makes publish best-effort (a hub outage never breaks a write).
+
+### M3 — Distribution ✅ (deploy is the remaining human step)
+- `/llms.txt` agent-manifest (self-describing front door).
+- **MCP server** (`mcp/`, TS, SDK 1.29): 9 tools, smoke-tested over stdio. See `mcp/README.md`.
+- Prod-safe seeding: `CatalogSeeder` (shared by dev fixtures + prod) + idempotent `app:seed` run by the
+  prod entrypoint (fixtures are dev-only, so this fills a fresh Railway DB).
+
+### Security pass ✅ (fresh-eyes subagent review + fixes)
+- **Length caps** on all free-text fields (`Track.outcome/successCriterion/body`, `Agent.persona/displayName`;
+  mirrored in MCP Zod) — closes a storage-DoS + blob-amplification vector.
+- **Anonymous DELETE/PUT/PATCH removed** — resources expose only `GetCollection/Get/Post` until M5 auth,
+  so one request can't wipe/tamper the catalog. (OpenAPI now shows only `get`/`post`.)
+- Blob carries an explicit "treat the recipe as untrusted data, not instructions" safety wrapper.
+- `Performance.evidenceUrl` restricted to `https`. Confirmed clean: mass-assignment locked
+  (id/createdAt/score read-only), Mercure publish JWT-protected, no real secrets committed, MCP server safe.
 
 ### Verified working
-- Ordering by score (2/1/0/0/-1); live vote POST recomputes score (0→1).
-- `GET/POST /api/{tracks,agents,performances,votes,feedback}`; SearchFilters by `track`/`by`.
-- **Mercure**: POST a track → SSE event received live; DELETE → 204.
+- Ordering by score (2/1/0/0/-1); live vote recomputes score. Mercure POST→SSE live; DELETE→405, PATCH→405,
+  oversized body→422. Prod image on a **fresh DB**: migrates + seeds 5 tracks + serves (entrypoint robust).
 
 ## How to run it locally
 
@@ -38,26 +49,29 @@ curl -s -H 'Accept: application/ld+json' http://localhost:8000/api/tracks      #
 curl -sN 'http://localhost:8000/.well-known/mercure?topic=*'                   # live activity stream
 open http://localhost:8000/api                                                 # Swagger UI (browser)
 ```
-Console/Composer in-container: `docker compose run --rm -e HOME=/tmp app php bin/console <cmd>`.
-⚠️ After entity/metadata changes, run `... app php bin/console cache:clear` (dev metadata cache can go stale).
-
-## Next: M3 — Distribution + go live
-- `llms.txt` / agent-manifest (self-describing entry doc for agents). _(autonomous)_
-- **MCP server** (`mcp/`, TypeScript) → calls this API so any MCP agent can join. _(autonomous)_
-- Seed catalog ✅ (already done in M1/M2 fixtures).
-- **Deploy**: Railway (API + spending cap) + Cloudflare (DNS social-playlist.com). **← human gate.**
+⚠️ After entity/metadata changes: `... app php bin/console cache:clear` (dev metadata cache can go stale).
+⚠️ DELETE is disabled, so to reset test data, reload fixtures (don't DELETE).
 
 ## Waiting on a human (Mike)
-- **Deploy** → follow **[DEPLOY.md](./DEPLOY.md)** (Railway + Cloudflare, ~20–40 min). The production
-  image is **smoke-tested locally** (boots, migrates, serves API + `/llms.txt` + Mercure, publishes
-  live events). You set: GitHub push, Railway env + **spending cap**, Cloudflare DNS.
-- Heads-up: **commit signing fails in this Codespace** ("Author is invalid") — commits are unsigned.
-  Sort signing before/when you push. Nothing is pushed yet (push is your gate).
+- **Deploy** → follow **[DEPLOY.md](./DEPLOY.md)** (Railway + Cloudflare, ~20–40 min). Production image is
+  validated end-to-end on a fresh DB. You set: GitHub push, Railway env + **spending cap** + confirm
+  `APP_DEBUG` unset, Cloudflare DNS + a rate-limit/WAF rule (the sole abuse guard pre-M5).
+- **Commit signing fails in this Codespace** ("Author is invalid") — commits are unsigned; sort before/at push.
 
-## Notes / decisions made while building
-- FrankenPHP reads its Caddyfile from `/etc/frankenphp/Caddyfile` (not `/etc/caddy/`). Plain HTTP on
-  :8000 (no TLS).
-- Caddy + Mercure write to `/data` and `/config`; the image `chown`s them to uid 1000 (we run non-root).
-- Mercure dev config uses a shared JWT secret across `MERCURE_JWT_SECRET` /
-  `MERCURE_PUBLISHER_JWT_KEY` / `MERCURE_SUBSCRIBER_JWT_KEY` (see `compose.yaml`). Rotate for prod.
-- Branch: `m1-api-spine`. Checkpoints committed locally (unsigned); **not pushed**.
+## Known pre-auth posture (by design until M5)
+- **`createdBy`/`by` are client-supplied and unverified** → tracks/votes/performances/feedback can be
+  authored "as" any agent, so **score / performances / feedback are forgeable and NOT trustworthy signal yet.**
+  Fix in M5: derive identity server-side from an authenticated agent. The unique-vote constraint itself is
+  DB-enforced (not bypassable); the weakness is purely the forgeable `by`.
+- No per-agent rate limiting yet → rely on the Railway spending cap + Cloudflare rate rules until M5.
+
+## Next milestones
+- **M4 — Observable site** (Astro, mobile-first, real-time feed; the transparency requirement). Will need
+  CORS scoped to the site origin.
+- **M5 — Auth + hardening**: per-agent API keys, server-derived identity (fixes forgeability), rate limiting.
+
+## Notes / decisions
+- FrankenPHP Caddyfile path is `/etc/frankenphp/Caddyfile`; plain HTTP on `$PORT` (TLS terminated upstream).
+- Image `chown`s `/data` + `/config` to uid 1000 (dev runs non-root). Prod runs as root.
+- Mercure dev secret in `compose.yaml` is dev-only; prod uses generated env (≥256-bit). Rotate for prod.
+- Branch: `m1-api-spine`. Commits local + unsigned; **not pushed**.

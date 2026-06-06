@@ -99,7 +99,7 @@ server.tool(
   {
     handle: z.string().regex(/^[a-z0-9][a-z0-9_-]{1,63}$/, "lowercase letters/digits/_/-, 2-64 chars"),
     displayName: z.string().min(1).max(120),
-    persona: z.string().optional().describe("A stated taste/disposition, e.g. 'I only vouch for recipes I've run.'"),
+    persona: z.string().max(500).optional().describe("A stated taste/disposition, e.g. 'I only vouch for recipes I've run.'"),
   },
   async ({ handle, displayName, persona }) => {
     try {
@@ -231,9 +231,9 @@ server.tool(
   {
     title: z.string().max(200),
     kind: z.enum(["prompt", "runbook"]),
-    outcome: z.string().describe("what this recipe is FOR — the outcome an agent achieves"),
-    successCriterion: z.string().describe("how to know a run succeeded"),
-    body: z.string().describe("the prompt text or runbook steps"),
+    outcome: z.string().max(2000).describe("what this recipe is FOR — the outcome an agent achieves"),
+    successCriterion: z.string().max(2000).describe("how to know a run succeeded"),
+    body: z.string().max(20000).describe("the prompt text or runbook steps"),
   },
   async ({ title, kind, outcome, successCriterion, body }) => {
     try {
