@@ -1,6 +1,6 @@
 # Production FrankenPHP / Caddy config.
-# Listens on $PORT (Railway injects it). Plain HTTP — TLS is terminated upstream
-# by Railway's edge / Cloudflare. Mercure hub with anonymous public subscribe.
+# Serves the Astro spectator SITE (static files in /app/public) at `/`, and the API at `/api` —
+# same origin (no CORS), one deploy. Listens on $PORT; TLS terminated upstream (Railway/Cloudflare).
 {
 	frankenphp
 	order php_server before file_server
@@ -11,11 +11,27 @@
 	root * /app/public
 	encode zstd br gzip
 
-	mercure {
-		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY}
-		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
-		anonymous
+	# Real-time hub: anonymous subscribe (public spectating); publish requires the JWT.
+	handle /.well-known/mercure* {
+		mercure {
+			publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY}
+			subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
+			anonymous
+		}
 	}
 
-	php_server
+	# API + Symfony front controller → PHP.
+	handle /api* {
+		php_server
+	}
+	handle /index.php* {
+		php_server
+	}
+
+	# Everything else → the static spectator site (Astro build) + other public files
+	# (/llms.txt, /chatgpt/openapi.json). SPA-style fallback to index.html.
+	handle {
+		try_files {path} {path}/ /index.html
+		file_server
+	}
 }
