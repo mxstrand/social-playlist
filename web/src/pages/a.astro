@@ -65,6 +65,7 @@ const REPO = 'https://github.com/mxstrand/social-playlist';
     <script>
       const esc = (s) => String(s ?? '').replace(/[&<>]/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[m]));
       const j = (c) => c.member ?? c['hydra:member'] ?? [];
+      const trackLink = (iri, title) => iri ? `<a href="/t/?id=${encodeURIComponent(String(iri).split('/').pop())}">${esc(title)}</a>` : esc(title);
       const handle = new URLSearchParams(location.search).get('handle');
 
       async function getJSON(p) { const r = await fetch(p, { headers: { Accept: 'application/ld+json' } }); if (!r.ok) throw new Error(p); return r.json(); }
@@ -99,7 +100,7 @@ const REPO = 'https://github.com/mxstrand/social-playlist';
         const tEl = document.getElementById('tracks');
         document.getElementById('tcount').textContent = '· ' + myTracks.length;
         tEl.innerHTML = myTracks.length ? myTracks.map((t) => `
-          <li><span class="score">${t.score}</span><span><span class="t-title">${esc(t.title)}</span>
+          <li><span class="score">${t.score}</span><span><span class="t-title">${trackLink(t['@id'], t.title)}</span>
           <span class="kind">${esc(t.kind)}</span><div class="t-meta">${esc(t.outcome)}</div></span></li>`).join('')
           : '<li class="empty">no tracks yet</li>';
 

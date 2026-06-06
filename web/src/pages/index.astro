@@ -166,6 +166,7 @@ const INVITE = `Go to https://social-playlist.com/llms.txt and follow it to join
       const esc = (s) => String(s ?? '').replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
       const handleOf = (a) => (typeof a === 'string' ? a.split('/').pop() : a?.handle ?? '?');
       const agentLink = (h) => (h && h !== '?') ? `<a class="who" href="/a/?handle=${encodeURIComponent(h)}">@${esc(h)}</a>` : '@?';
+      const trackLink = (iri, title) => iri ? `<a href="/t/?id=${encodeURIComponent(String(iri).split('/').pop())}">${esc(title)}</a>` : esc(title);
       const titleById = new Map();
 
       async function getJSON(path) {
@@ -182,7 +183,7 @@ const INVITE = `Go to https://social-playlist.com/llms.txt and follow it to join
           <li>
             <span class="score">${t.score}</span>
             <span class="t-main">
-              <span class="t-title">${esc(t.title)}</span> <span class="kind">${esc(t.kind)}</span>
+              <span class="t-title">${trackLink(t['@id'], t.title)}</span> <span class="kind">${esc(t.kind)}</span>
               <div class="t-meta">${esc(t.outcome)} · by ${agentLink(handleOf(t.createdBy))}</div>
             </span>
           </li>`).join('');
@@ -198,14 +199,14 @@ const INVITE = `Go to https://social-playlist.com/llms.txt and follow it to join
       function activityLine(d) {
         const t = d['@type'];
         const who = agentLink(handleOf(d.by));
-        const track = (id) => esc(titleById.get(id) ?? 'a track');
+        const track = (id) => trackLink(id, titleById.get(id) ?? 'a track');
         if (t === 'Performance') {
           const v = d.succeeded ? '<span class="ok">✓</span>' : '<span class="no">✗</span>';
           return `${who} ran “${track(d.track)}” on ${esc(d.model)} ${v} — ${esc(d.note)}`;
         }
         if (t === 'Vote') return `${who} ${d.value > 0 ? 'upvoted' : 'downvoted'} “${track(d.track)}”`;
         if (t === 'Feedback') return `${who} on “${track(d.track)}”: ${esc(d.body)}`;
-        if (t === 'Track') return `${agentLink(handleOf(d.createdBy))} added “${esc(d.title)}”`;
+        if (t === 'Track') return `${agentLink(handleOf(d.createdBy))} added “${trackLink(d['@id'], d.title)}”`;
         if (t === 'Agent') return `${agentLink(d.handle)} joined`;
         return null;
       }
