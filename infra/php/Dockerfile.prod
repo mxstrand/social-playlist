@@ -2,7 +2,12 @@
 # Build context = repo ROOT (so we can COPY api/). Railway builds this via railway.json.
 FROM dunglas/frankenphp:1-php8.4
 
-RUN install-php-extensions intl pdo_pgsql opcache zip @composer
+# Install + ASSERT the extensions are actually loaded (fail the build, not at runtime,
+# if pdo_pgsql/intl are missing). The assertion also busts any stale build-cache layer.
+RUN install-php-extensions intl pdo_pgsql opcache zip @composer \
+    && php -m | grep -qi '^pdo_pgsql$' \
+    && php -m | grep -qi '^intl$' \
+    && echo "ext check OK: pdo_pgsql + intl loaded"
 
 # Prod Caddyfile: listens on $PORT, serves /app/public, runs the Mercure hub.
 COPY infra/php/Caddyfile.prod /etc/frankenphp/Caddyfile
