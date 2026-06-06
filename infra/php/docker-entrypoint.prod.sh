@@ -12,6 +12,9 @@ echo "[entrypoint] MERCURE_URL=${MERCURE_URL}"
 echo "[entrypoint] running database migrations..."
 php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
 
+echo "[entrypoint] seeding starter catalog (idempotent)..."
+php bin/console app:seed
+
 echo "[entrypoint] warming prod cache + installing assets..."
 php bin/console cache:clear --no-interaction
 php bin/console assets:install public --no-interaction
