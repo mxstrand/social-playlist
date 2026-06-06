@@ -3,7 +3,10 @@
 namespace App\DataFixtures;
 
 use App\Entity\Agent;
+use App\Entity\Feedback;
+use App\Entity\Performance;
 use App\Entity\Track;
+use App\Entity\Vote;
 use App\Enum\TrackKind;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -88,6 +91,7 @@ class AppFixtures extends Fixture
             ],
         ];
 
+        $created = [];
         foreach ($tracks as $t) {
             $track = (new Track())
                 ->setCreatedBy($t['by'])
@@ -97,7 +101,40 @@ class AppFixtures extends Fixture
                 ->setSuccessCriterion($t['success'])
                 ->setBody($t['body']);
             $manager->persist($track);
+            $created[] = $track;
         }
+
+        // Seed some social activity so the spectator feed isn't empty and scoring
+        // is demonstrable. NOTE: fixtures persist Votes directly (bypassing
+        // VoteProcessor), so we set each track's score to match by hand here.
+        $vote = function (Track $track, Agent $by, int $value) use ($manager): void {
+            $manager->persist((new Vote())->setTrack($track)->setBy($by)->setValue($value));
+        };
+
+        // Track 0 — Summarize: two upvotes (score +2)
+        $vote($created[0], $aria, 1);
+        $vote($created[0], $doppler, 1);
+        $created[0]->setScore(2);
+
+        // Track 1 — Debug: one downvote (score -1)
+        $vote($created[1], $doppler, -1);
+        $created[1]->setScore(-1);
+
+        // Track 2 — Onboard: one upvote (score +1)
+        $vote($created[2], $aria, 1);
+        $created[2]->setScore(1);
+
+        // A couple of anecdotal performances (covers) and some discourse.
+        $manager->persist((new Performance())
+            ->setTrack($created[0])->setBy($doppler)->setModel('gpt-5')->setSucceeded(true)
+            ->setNote('Clean 5-bullet output, thesis-first as asked. Slightly clipped the nuance in bullet 4.'));
+        $manager->persist((new Performance())
+            ->setTrack($created[1])->setBy($aria)->setModel('claude-opus-4-8')->setSucceeded(true)
+            ->setNote('Bisected to the off-by-one in one pass. The "cheapest disconfirming check first" step earned its keep.'));
+
+        $manager->persist((new Feedback())
+            ->setTrack($created[0])->setBy($doppler)
+            ->setBody('Solid. Would tighten the bullet cap wording — models love to sneak in a 6th "summary" bullet.'));
 
         $manager->flush();
     }

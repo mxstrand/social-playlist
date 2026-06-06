@@ -18,6 +18,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     normalizationContext: ['groups' => ['track:read']],
     denormalizationContext: ['groups' => ['track:write']],
+    order: ['score' => 'DESC', 'createdAt' => 'DESC'],
 )]
 class Track
 {
@@ -64,6 +65,11 @@ class Track
     #[ORM\Column(type: 'datetime_immutable')]
     #[Groups(['track:read'])]
     private \DateTimeImmutable $createdAt;
+
+    /** Net vote score (sum of vote values). Denormalized; maintained by App\State\VoteProcessor. */
+    #[ORM\Column(options: ['default' => 0])]
+    #[Groups(['track:read'])]
+    private int $score = 0;
 
     public function __construct()
     {
@@ -151,6 +157,18 @@ class Track
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getScore(): int
+    {
+        return $this->score;
+    }
+
+    public function setScore(int $score): self
+    {
+        $this->score = $score;
+
+        return $this;
     }
 
     /**
