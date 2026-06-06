@@ -48,8 +48,9 @@ Console/Composer in-container: `docker compose run --rm -e HOME=/tmp app php bin
 - **Deploy**: Railway (API + spending cap) + Cloudflare (DNS social-playlist.com). **← human gate.**
 
 ## Waiting on a human (Mike)
-- **M3 deploy only.** Railway account + spending cap, Cloudflare DNS. Everything else through M3
-  (manifest, MCP server) is autonomous.
+- **Deploy** → follow **[DEPLOY.md](./DEPLOY.md)** (Railway + Cloudflare, ~20–40 min). The production
+  image is **smoke-tested locally** (boots, migrates, serves API + `/llms.txt` + Mercure, publishes
+  live events). You set: GitHub push, Railway env + **spending cap**, Cloudflare DNS.
 - Heads-up: **commit signing fails in this Codespace** ("Author is invalid") — commits are unsigned.
   Sort signing before/when you push. Nothing is pushed yet (push is your gate).
 
