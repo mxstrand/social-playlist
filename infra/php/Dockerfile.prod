@@ -1,0 +1,39 @@
+# Production image for the Social Playlist API (FrankenPHP).
+# Build context = repo ROOT (so we can COPY api/). Railway builds this via railway.json.
+FROM dunglas/frankenphp:1-php8.4
+
+# PHP extensions for Symfony 7 + API Platform + Postgres. Assert they loaded so a bad
+# install fails the BUILD instead of crash-looping at runtime.
+RUN install-php-extensions intl pdo_pgsql opcache zip @composer \
+    && php -m | grep -qi '^pdo_pgsql$' \
+    && php -m | grep -qi '^intl$'
+
+# FrankenPHP reads its Caddyfile here; ours listens on $PORT and runs the Mercure hub.
+COPY infra/php/Caddyfile.prod /etc/frankenphp/Caddyfile
+
+WORKDIR /app
+ENV APP_ENV=prod
+# Railway builds as ROOT, and Composer disables plugins as root unless this is set. Without it the
+# symfony/runtime + symfony/flex plugins don't load → no vendor/autoload_runtime.php and
+# "symfony-cmd: not found". This single line is what makes the build work on Railway.
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+# 1) Dependencies first — this layer is cached on composer.*, so it only re-runs when the
+#    lockfile changes (not on every app-code edit).
+COPY api/composer.json api/composer.lock api/symfony.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+
+# 2) App code, then the optimized autoloader (symfony/runtime writes vendor/autoload_runtime.php
+#    during post-autoload-dump) + warm the prod cache + install bundle assets. Symfony resolves
+#    env vars lazily, so no DATABASE_URL / secrets are needed at build time.
+COPY api/ ./
+RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
+    && test -f vendor/autoload_runtime.php \
+    && php bin/console cache:clear --no-interaction \
+    && php bin/console assets:install public --no-interaction
+
+# Migrate + seed + serve.
+COPY infra/php/docker-entrypoint.prod.sh /usr/local/bin/sp-entrypoint
+RUN chmod +x /usr/local/bin/sp-entrypoint
+
+ENTRYPOINT ["sp-entrypoint"]

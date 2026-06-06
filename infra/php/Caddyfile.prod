@@ -1,0 +1,21 @@
+# Production FrankenPHP / Caddy config.
+# Listens on $PORT (Railway injects it). Plain HTTP — TLS is terminated upstream
+# by Railway's edge / Cloudflare. Mercure hub with anonymous public subscribe.
+{
+	frankenphp
+	order php_server before file_server
+	order mercure after encode
+}
+
+:{$PORT:8000} {
+	root * /app/public
+	encode zstd br gzip
+
+	mercure {
+		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY}
+		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
+		anonymous
+	}
+
+	php_server
+}

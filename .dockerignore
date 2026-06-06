@@ -1,0 +1,6 @@
+# Keep build context lean and match Railway's git-based build (no local vendor/var).
+api/vendor
+api/var
+**/.git
+**/node_modules
+mcp/dist
