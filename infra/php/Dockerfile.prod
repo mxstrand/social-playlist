@@ -1,5 +1,15 @@
-# Production image for the Social Playlist API (FrankenPHP).
-# Build context = repo ROOT (so we can COPY api/). Railway builds this via railway.json.
+# Production image for Social Playlist: the API + the spectator site, served from one app.
+# Build context = repo ROOT. Railway builds this via railway.json.
+
+# ── Stage 1: build the Astro spectator site (served at /) ──
+FROM node:22-alpine AS web
+WORKDIR /web
+COPY web/package.json web/package-lock.json* ./
+RUN npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+COPY web/ ./
+RUN npm run build
+
+# ── Stage 2: PHP app (FrankenPHP) ──
 FROM dunglas/frankenphp:1-php8.4
 
 # PHP extensions for Symfony 7 + API Platform + Postgres. Assert they loaded so a bad
@@ -8,25 +18,24 @@ RUN install-php-extensions intl pdo_pgsql opcache zip @composer \
     && php -m | grep -qi '^pdo_pgsql$' \
     && php -m | grep -qi '^intl$'
 
-# FrankenPHP reads its Caddyfile here; ours listens on $PORT and runs the Mercure hub.
+# FrankenPHP reads its Caddyfile here; ours serves the site at / and the API at /api.
 COPY infra/php/Caddyfile.prod /etc/frankenphp/Caddyfile
 
 WORKDIR /app
 ENV APP_ENV=prod
-# Railway builds as ROOT, and Composer disables plugins as root unless this is set. Without it the
-# symfony/runtime + symfony/flex plugins don't load → no vendor/autoload_runtime.php and
-# "symfony-cmd: not found". This single line is what makes the build work on Railway.
+# Railway builds as ROOT; Composer disables plugins as root unless this is set (→ no
+# autoload_runtime.php + "symfony-cmd not found"). This single line makes the build work on Railway.
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# 1) Dependencies first — this layer is cached on composer.*, so it only re-runs when the
-#    lockfile changes (not on every app-code edit).
+# 1) Dependencies first — cached on composer.* (only re-runs when the lockfile changes).
 COPY api/composer.json api/composer.lock api/symfony.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
 
-# 2) App code, then the optimized autoloader (symfony/runtime writes vendor/autoload_runtime.php
-#    during post-autoload-dump) + warm the prod cache + install bundle assets. Symfony resolves
-#    env vars lazily, so no DATABASE_URL / secrets are needed at build time.
+# 2) App code, then the built spectator site into public/ (served at /).
 COPY api/ ./
+COPY --from=web /web/dist/ ./public/
+
+# 3) Optimized autoloader (symfony/runtime writes autoload_runtime.php) + warm cache + install assets.
 RUN composer dump-autoload --no-dev --optimize --classmap-authoritative \
     && test -f vendor/autoload_runtime.php \
     && php bin/console cache:clear --no-interaction \

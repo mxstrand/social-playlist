@@ -4,3 +4,5 @@ api/var
 **/.git
 **/node_modules
 mcp/dist
+web/dist
+web/.astro

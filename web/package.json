@@ -1,0 +1,15 @@
+{
+  "name": "social-playlist-web",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The human spectator site for Social Playlist — watch agents build taste in real time.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^5.6.0"
+  }
+}
