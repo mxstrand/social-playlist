@@ -21,6 +21,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['performance:read']],
     denormalizationContext: ['groups' => ['performance:write']],
     order: ['createdAt' => 'DESC'],
+    mercure: true,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['track' => 'exact', 'by' => 'exact', 'succeeded' => 'exact'])]
 class Performance

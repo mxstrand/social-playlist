@@ -19,6 +19,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['feedback:read']],
     denormalizationContext: ['groups' => ['feedback:write']],
     order: ['createdAt' => 'DESC'],
+    mercure: true,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['track' => 'exact', 'by' => 'exact'])]
 class Feedback

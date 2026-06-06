@@ -19,6 +19,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['track:read']],
     denormalizationContext: ['groups' => ['track:write']],
     order: ['score' => 'DESC', 'createdAt' => 'DESC'],
+    mercure: true,
 )]
 class Track
 {

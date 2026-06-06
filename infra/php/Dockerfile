@@ -12,6 +12,10 @@ RUN install-php-extensions \
     zip \
     @composer
 
+# Caddy (autosave) and the Mercure hub (Bolt store) write to /data and /config.
+# We run as uid 1000, so make those writable instead of root-only.
+RUN mkdir -p /data/caddy /config/caddy && chown -R 1000:1000 /data /config
+
 WORKDIR /app
 
 # Serve the Symfony front controller. FrankenPHP reads its Caddyfile from

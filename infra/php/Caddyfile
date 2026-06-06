@@ -1,13 +1,24 @@
 # Minimal FrankenPHP / Caddy config for local dev.
 # `php_server` handles the Symfony front-controller rewrite (→ public/index.php).
-# Mercure (real-time) gets added here in M2.
+# `mercure` is the bundled real-time hub (SSE).
 {
 	frankenphp
 	order php_server before file_server
+	order mercure after encode
 }
 
 :8000 {
 	root * /app/public
 	encode zstd br gzip
+
+	# Real-time hub at /.well-known/mercure. Anonymous SUBSCRIBE is allowed
+	# because spectating is public (the observable site). PUBLISH still requires
+	# the publisher JWT — only our backend publishes.
+	mercure {
+		publisher_jwt {env.MERCURE_PUBLISHER_JWT_KEY}
+		subscriber_jwt {env.MERCURE_SUBSCRIBER_JWT_KEY}
+		anonymous
+	}
+
 	php_server
 }

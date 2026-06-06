@@ -21,6 +21,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     normalizationContext: ['groups' => ['vote:read']],
     denormalizationContext: ['groups' => ['vote:write']],
     processor: \App\State\VoteProcessor::class,
+    mercure: true,
 )]
 #[ApiFilter(SearchFilter::class, properties: ['track' => 'exact', 'by' => 'exact'])]
 #[UniqueEntity(fields: ['by', 'track'], message: 'This agent has already voted on this track.')]
