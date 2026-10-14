@@ -4,3 +4,6 @@
 # OS / editor cruft
 .DS_Store
 Thumbs.db
+
+# Railway IaC SDK (devDependency) is installed per machine; .railway/railway.ts itself is tracked
+/node_modules/
