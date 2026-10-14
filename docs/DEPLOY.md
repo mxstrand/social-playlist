@@ -28,8 +28,10 @@ unsigned. If your push is rejected for signing, either sign on push or temporari
 
 1. https://railway.app → **New Project** → **Deploy from GitHub repo** → `mxstrand/social-playlist`.
    - Pick the branch you pushed (`m1-api-spine` or `main`).
-2. Railway reads **`railway.json`** → builds with `infra/php/Dockerfile.prod` automatically. Let the
-   first build run (it'll fail health checks until env + DB are set — that's expected; continue).
+2. The service is declared in **`.railway/railway.ts`** (Railway Infrastructure as Code; it builds with
+   `infra/php/Dockerfile.prod`). Apply it from a checkout: `railway login`, `npm install`, then
+   `railway config apply`. Variables are unmanaged, so IaC never reads or writes them; set them in step 3.
+   Let the first build run (it fails health checks until env + DB are set; that's expected, continue).
 
 ## 2. Railway — add Postgres
 
