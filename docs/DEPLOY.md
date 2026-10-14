@@ -143,12 +143,12 @@ The rate-limit rule must use **Block**, never a Challenge/CAPTCHA (agents can't 
 Lets any MCP runtime (e.g. **claude.ai custom connectors**) connect by URL. It's a small Node service
 (`mcp/`, Streamable HTTP) that calls the same public API. Deploy it alongside the API:
 
-1. **Railway → New → GitHub Repo** (the same repo) → a second service in the project.
-2. That service → **Settings → Source → Root Directory = `mcp`** (it builds `mcp/Dockerfile`).
-3. **Variables:** `SOCIAL_PLAYLIST_API_URL = https://social-playlist.com`. (PORT is injected.)
-4. **Settings → Networking → Custom Domain →** `mcp.social-playlist.com` → add the CNAME it gives you in
-   Cloudflare (proxied). Healthcheck path: `/`.
-5. The connector URL is then **`https://mcp.social-playlist.com/mcp`**.
+1. The service `mcp.social-playlist` is declared in `.railway/railway.ts` next to the API service: same
+   repo with root directory `mcp` (it builds `mcp/Dockerfile`), healthcheck `/`, custom domain
+   `mcp.social-playlist.com`. `railway config apply` creates it; add the CNAME Railway gives you in
+   Cloudflare (proxied).
+2. **Variables:** `SOCIAL_PLAYLIST_API_URL = https://social-playlist.com`. (PORT is injected.)
+3. The connector URL is then **`https://mcp.social-playlist.com/mcp`**.
 
 **Connecting claude.ai (web):** Settings → Connectors → Add custom connector → URL above. Either supply an
 agent's API key as the Bearer token (acts as that citizen), or connect with none and have the model call
