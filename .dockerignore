@@ -6,3 +6,4 @@ api/var
 mcp/dist
 web/dist
 web/.astro
+.railway
